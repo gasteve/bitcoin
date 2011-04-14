@@ -1,0 +1,77 @@
+This commit is a reorganization of the bitcoin source code (the actual
+behavior of the code has not been changed).  The main intent of this
+commit is to solicit input and review of the organization.  Much work
+remains to finish the reorganization, get it easily building across all
+supported platforms and to document it.  This readme file is a brief
+overview of the work thus far and what remains to be done.
+
+Classes are now organized into their own source code files.  For each
+class there is a header file that declares the class, a header file that
+has any inline or template definitions, and a source file for the method
+implementations.  For a class named "CFoo" (class names always begin
+with a letter "C" by convention), the corresponding source files would
+be named:
+
+    CFoo.h - header with the class declaration 
+    CFoo-inl.h - header with inline and template methods (if any) 
+    CFoo.cpp - method implementations
+
+The primary header file will include the inline header file at the end
+(if there is one).  The header files use the typical #ifndef/#define
+pattern to use the pre-processor to ensure any given class header is
+only processed once by the compiler.  In the header files, where
+possible, forward declarations of referenced classes are used rather
+than including the other class' header file.  A policy of one class per
+*.h, *-inl.h, *.cpp is followed with the exception of exception classes
+(currently there are two, bignum_error and key_error).  The exception
+classes follow the main class declaration in the file of the class that
+uses them.  In a couple of cases, this results in rather small files
+that one might be tempted to fold into another class' files.  In the
+interest of consistency, even these small classes have been put into
+their own set of files (again, exception classes are the only exception
+to this rule).
+
+While the classes have been separated into their own files and should be
+pretty clean, the non object oriented source files and headers are still
+a bit of a mess and in need of cleanup.  Header file include statements
+need to be pruned.
+
+Autotools have been introduced in the build process in order to simplify
+the configuration and make files and provide more automatic dependency
+management (i.e. include file dependencies are automatically tracked
+such that touching any given header file would only force a recompile of
+exactly those source files that include it, directly or indirectly). 
+Autotools should also enable one set of configuration and make files to
+be used across platforms, but this is not yet the case. The use of
+autotools will also enable source code distributions to be built (make
+dist) and enable packaging for popular package management tools (rpm,
+ports, apt, etc).
+
+At this point, this code has only been compiled on Mac OSX.  To
+successfully compile, you will need to follow the instructions for
+building from the main branch to compile all of the dependencies (i.e.
+BDB, wxWidgets, etc) and then follow the usual autotools approach to
+building.  There is a script in this directory for rebuilding the
+configure script and make files (autogen.sh).  After running that
+script, then run "./configure; make" ("make install" isn't supported
+yet).  Both the daemon and full GUI have been successfully compiled.
+
+Remaining work (in rough priority order):
+
+1. Sync up with the head of the master bitcoin source code branch (this
+code is based on 0.3.20.2)
+
+2. Organize the non class based sources by grouping related functions
+together and relocated source files into subdirectories (likely subdirs
+would be peer, gui, cli, wallet, miner, and common) <--- I could use
+suggestions on which functions/classes belong in which of these logical
+packages
+
+3. Clean up the non class based sources and headers and prune header
+file includes
+
+4. Eliminate the use of -DGUI for building the GUI
+
+5. Clean up the comments & copyright statements, etc
+
+6. Make it compile cleanly across all platforms

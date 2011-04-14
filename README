@@ -1,4 +1,7 @@
-This commit is a reorganization of the bitcoin source code (the actual
+ABOUT
+=====
+
+This branch is a reorganization of the bitcoin source code (the actual
 behavior of the code has not been changed).  The main intent of this
 commit is to solicit input and review of the organization.  Much work
 remains to finish the reorganization, get it easily building across all
@@ -75,3 +78,66 @@ file includes
 5. Clean up the comments & copyright statements, etc
 
 6. Make it compile cleanly across all platforms
+
+
+Development process
+===================
+
+Developers work in their own trees, then submit pull requests when they think their feature or bug fix is ready.
+
+If it is a simple/trivial/non-controversial change, then one of the bitcoin development team members simply pulls it.
+
+If it is a more complicated or potentially controversial change, then the patch submitter will be asked to start a discussion (if they haven't already) on the development forums:  http://www.bitcoin.org/smf/index.php?board=6.0
+The patch will be accepted if there is broad consensus that it is a good thing.  Developers should expect to rework and resubmit patches if they don't match the project's coding conventions (see coding.txt) or are controversial.
+
+The master branch is regularly built and tested (by who? need people willing to be quality assurance testers), and periodically pushed to the subversion repo to become the official, stable, released bitcoin.
+
+
+Feature branches are created when there are major new features being worked on by several people.
+
+
+CODING STANDARDS
+================
+
+Please be consistent with the existing coding style.
+
+Block style:
+
+bool Function(char* psz, int n)
+{
+    // Comment summarising what this section of code does
+    for (int i = 0; i < n; i++)
+    {
+        // When something fails, return early
+        if (!Something())
+            return false;
+        ...
+    }
+
+    // Success return is usually at the end
+    return true;
+}
+
+- ANSI/Allman block style
+- 4 space indenting, no tabs
+- No extra spaces inside parenthesis; please don't do ( this )
+- No space after function names, one space after if, for and while
+
+Variable names begin with the type in lowercase, like nSomeVariable.
+Please don't put the first word of the variable name in lowercase like
+someVariable.
+
+Common types:
+n       integer number: short, unsigned short, int, unsigned int,
+            int64, uint64, sometimes char if used as a number
+d       double, float
+f       flag
+hash    uint256
+p       pointer or array, one p for each level of indirection
+psz     pointer to null terminated string
+str     string object
+v       vector or similar list objects
+map     map or multimap
+set     set or multiset
+bn      CBigNum
+

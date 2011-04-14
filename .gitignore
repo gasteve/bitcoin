@@ -1,3 +1,7 @@
 *.exe
+*.o
 bitcoin
 bitcoind
+Makefile
+Makefile.in
+config.h

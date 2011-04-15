@@ -23,6 +23,7 @@ public:
     vector<CTxOut> vout;
     unsigned int nLockTime;
 
+    static bool AllowFree(double dPriority);
 
     CTransaction();
     void SetNull();

@@ -274,18 +274,7 @@ CBlock* CreateNewBlock(CReserveKey& reservekey)
                 int64 nValueIn = txPrev.vout[txin.prevout.n].nValue;
 
                 // Read block header
-                int nConf = 0;
-                CBlock block;
-                if (block.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos, false))
-                {
-                    map<uint256, CBlockIndex*>::iterator it = mapBlockIndex.find(block.GetHash());
-                    if (it != mapBlockIndex.end())
-                    {
-                        CBlockIndex* pindex = (*it).second;
-                        if (pindex->IsInMainChain())
-                            nConf = 1 + nBestHeight - pindex->nHeight;
-                    }
-                }
+                int nConf = txindex.GetDepthInMainChain();
 
                 dPriority += (double)nValueIn * nConf;
 
@@ -330,7 +319,7 @@ CBlock* CreateNewBlock(CReserveKey& reservekey)
                 continue;
 
             // Transaction fee required depends on block size
-            bool fAllowFree = (nBlockSize + nTxSize < 4000 || dPriority > COIN * 144 / 250);
+            bool fAllowFree = (nBlockSize + nTxSize < 4000 || CTransaction::AllowFree(dPriority));
             int64 nMinFee = tx.GetMinFee(nBlockSize, fAllowFree);
 
             // Connecting shouldn't fail due to dependency on other memory pool transactions

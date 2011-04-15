@@ -27,6 +27,8 @@ CNode* FindNode(unsigned int ip);
 CNode* ConnectNode(CAddress addrConnect, int64 nTimeout=0);
 void AbandonRequests(void (*fn)(void*, CDataStream&), void* param1);
 bool AnySubscribed(unsigned int nChannel);
+void MapPort(bool fMapPort);
+void DNSAddressSeed();
 bool BindListenPort(string& strError=REF(string()));
 void StartNode(void* parg);
 bool StopNode();

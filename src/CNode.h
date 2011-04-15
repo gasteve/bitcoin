@@ -86,6 +86,7 @@ public:
     void CancelSubscribe(unsigned int nChannel);
     void CloseSocketDisconnect();
     void Cleanup();
+    void PushVersion();
 
 	// A bunch of templated versions of PushMessage
     void PushMessage(const char* pszCommand);

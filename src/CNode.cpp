@@ -41,14 +41,9 @@ CNode::CNode(SOCKET hSocketIn, CAddress addrIn, bool fInboundIn)
 	fGetAddr = false;
 	vfSubscribe.assign(256, false);
 
-	// Push a version message
-	/// when NTP implemented, change to just nTime = GetAdjustedTime()
-	int64 nTime = (fInbound ? GetAdjustedTime() : GetTime());
-	CAddress addrYou = (fUseProxy ? CAddress("0.0.0.0") : addr);
-	CAddress addrMe = (fUseProxy ? CAddress("0.0.0.0") : addrLocalHost);
-	RAND_bytes((unsigned char*)&nLocalHostNonce, sizeof(nLocalHostNonce));
-	PushMessage("version", VERSION, nLocalServices, nTime, addrYou, addrMe,
-				nLocalHostNonce, string(pszSubVer), nBestHeight);
+        // Be shy and don't send version until we hear
+        if (!fInbound)
+            PushVersion();
 }
 
 CNode::~CNode()
@@ -269,6 +264,17 @@ void CNode::CloseSocketDisconnect()
         closesocket(hSocket);
         hSocket = INVALID_SOCKET;
     }
+}
+
+void CNode::PushVersion()
+{
+    /// when NTP implemented, change to just nTime = GetAdjustedTime()
+    int64 nTime = (fInbound ? GetAdjustedTime() : GetTime());
+    CAddress addrYou = (fUseProxy ? CAddress("0.0.0.0") : addr);
+    CAddress addrMe = (fUseProxy ? CAddress("0.0.0.0") : addrLocalHost);
+    RAND_bytes((unsigned char*)&nLocalHostNonce, sizeof(nLocalHostNonce));
+    PushMessage("version", VERSION, nLocalServices, nTime, addrYou, addrMe,
+            nLocalHostNonce, string(pszSubVer), nBestHeight);
 }
 
 void CNode::PushMessage(const char* pszCommand)

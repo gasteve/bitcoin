@@ -172,6 +172,13 @@ int64 CTransaction::GetValueOut() const
 	return nValueOut;
 }
 
+static bool CTransaction::AllowFree(double dPriority)
+{
+    // Large (in bytes) low-priority (new, small-coin) transactions
+    // need a fee.
+    return dPriority > COIN * 144 / 250;
+}
+
 int64 CTransaction::GetMinFee(unsigned int nBlockSize, bool fAllowFree) const
 {
 	// Base fee is 1 cent per kilobyte
@@ -364,7 +371,11 @@ bool CTransaction::AcceptToMemoryPool(CTxDB& txdb, bool fCheckInputs, bool* pfMi
 
     // Safety limits
     unsigned int nSize = ::GetSerializeSize(*this, SER_NETWORK);
-    if (GetSigOpCount() > 2 || nSize < 100)
+    // Checking ECDSA signatures is a CPU bottleneck, so to avoid denial-of-service
+    // attacks disallow transactions with more than one SigOp per 34 bytes.
+    // 34 bytes because a TxOut is:
+    //   20-byte address + 8 byte bitcoin amount + 5 bytes of ops + 1 byte script length
+    if (GetSigOpCount() > nSize / 34 || nSize < 100)
         return error("AcceptToMemoryPool() : nonstandard transaction");
 
     // Rather not work on nonstandard transactions
@@ -424,19 +435,29 @@ bool CTransaction::AcceptToMemoryPool(CTxDB& txdb, bool fCheckInputs, bool* pfMi
         if (nFees < GetMinFee(1000))
             return error("AcceptToMemoryPool() : not enough fees");
 
-        // Limit free transactions per 10 minutes
-        if (nFees < CENT && GetBoolArg("-limitfreerelay"))
+        // Continuously rate-limit free transactions
+        // This mitigates 'penny-flooding' -- sending thousands of free transactions just to
+        // be annoying or make other's transactions take longer to confirm.
+        if (nFees < CENT)
         {
-            static int64 nNextReset;
-            static int64 nFreeCount;
-            if (GetTime() > nNextReset)
+            static CCriticalSection cs;
+            static double dFreeCount;
+            static int64 nLastTime;
+            int64 nNow = GetTime();
+
+            CRITICAL_BLOCK(cs)
             {
-                nNextReset = GetTime() + 10 * 60;
-                nFreeCount = 0;
+                // Use an exponentially decaying ~10-minute window:
+                dFreeCount *= pow(1.0 - 1.0/600.0, (double)(nNow - nLastTime));
+                nLastTime = nNow;
+                // -limitfreerelay unit is thousand-bytes-per-minute
+                // At default rate it would take over a month to fill 1GB
+                if (dFreeCount > GetArg("-limitfreerelay", 15)*10*1000 && !IsFromMe())
+                    return error("AcceptToMemoryPool() : free transaction rejected by rate limiter");
+                if (fDebug)
+                    printf("Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount+nSize);
+                dFreeCount += nSize;
             }
-            if (nFreeCount > 150000 && !IsFromMe())
-                return error("AcceptToMemoryPool() : free transaction rejected by rate limiter");
-            nFreeCount += nSize;
         }
     }
 

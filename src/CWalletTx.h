@@ -17,15 +17,17 @@ public:
     unsigned int fTimeReceivedIsTxTime;
     unsigned int nTimeReceived;  // time received by this node
     char fFromMe;
-    char fSpent;
     string strFromAccount;
+    vector<char> vfSpent;
 
     // memory only
     mutable char fDebitCached;
     mutable char fCreditCached;
+    mutable char fAvailableCreditCached;
     mutable char fChangeCached;
     mutable int64 nDebitCached;
     mutable int64 nCreditCached;
+    mutable int64 nAvailableCreditCached;
     mutable int64 nChangeCached;
 
     // memory only UI hints
@@ -40,8 +42,9 @@ public:
     int64 GetDebit() const;
     int64 GetCredit(bool fUseCache=true) const;
     int64 GetChange() const;
-    void GetAmounts(int64& nGenerated, list<pair<string /* address */, int64> >& listReceived,
+    void GetAmounts(int64& nGeneratedImmature, int64& nGeneratedMature, list<pair<string /* address */, int64> >& listReceived,
                     list<pair<string /* address */, int64> >& listSent, int64& nFee, string& strSentAccount) const;
+
     void GetAccountAmounts(const string& strAccount, int64& nGenerated, int64& nReceived, 
                            int64& nSent, int64& nFee) const;
     bool IsFromMe() const;
@@ -54,26 +57,56 @@ public:
     bool AcceptWalletTransaction(CTxDB& txdb, bool fCheckInputs=true);
     void RelayWalletTransaction();
     void RelayWalletTransaction(CTxDB& txdb);
+    bool UpdateSpent(const vector<char>& vfNewSpent);
+    void MarkDirty();
+    void MarkSpent(unsigned int nOut);
+    bool IsSpent(unsigned int nOut) const;
+    int64 GetAvailableCredit(bool fUseCache=true) const;
 
     IMPLEMENT_SERIALIZE
     (
         CWalletTx* pthis = const_cast<CWalletTx*>(this);
         if (fRead)
             pthis->Init();
-        nSerSize += SerReadWrite(s, *(CMerkleTx*)this, nType, nVersion, ser_action);
+        char fSpent = false;
+
+        if (!fRead)
+        {
+            pthis->mapValue["fromaccount"] = pthis->strFromAccount;
+
+            string str;
+            foreach(char f, vfSpent)
+            {
+                str += (f ? '1' : '0');
+                if (f)
+                    fSpent = true;
+            }
+            pthis->mapValue["spent"] = str;
+        }
+ 
+        nSerSize += SerReadWrite(s, *(CMerkleTx*)this, nType, nVersion,ser_action);
         READWRITE(vtxPrev);
-
-        pthis->mapValue["fromaccount"] = pthis->strFromAccount;
         READWRITE(mapValue);
-        pthis->strFromAccount = pthis->mapValue["fromaccount"];
-        pthis->mapValue.erase("fromaccount");
-        pthis->mapValue.erase("version");
-
         READWRITE(vOrderForm);
         READWRITE(fTimeReceivedIsTxTime);
         READWRITE(nTimeReceived);
         READWRITE(fFromMe);
         READWRITE(fSpent);
+
+        if (fRead)
+        {
+            pthis->strFromAccount = pthis->mapValue["fromaccount"];
+
+            if (mapValue.count("spent"))
+                foreach(char c, pthis->mapValue["spent"])
+                    pthis->vfSpent.push_back(c != '0');
+            else
+                pthis->vfSpent.assign(vout.size(), fSpent);
+        }
+
+        pthis->mapValue.erase("fromaccount");
+        pthis->mapValue.erase("version");
+        pthis->mapValue.erase("spent");
     )
 };
 

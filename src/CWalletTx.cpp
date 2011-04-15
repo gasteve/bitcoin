@@ -33,17 +33,68 @@ void CWalletTx::Init()
 	fTimeReceivedIsTxTime = false;
 	nTimeReceived = 0;
 	fFromMe = false;
-	fSpent = false;
 	strFromAccount.clear();
+        vfSpent.clear();
 	fDebitCached = false;
 	fCreditCached = false;
+        fAvailableCreditCached = false;
 	fChangeCached = false;
 	nDebitCached = 0;
 	nCreditCached = 0;
+        nAvailableCreditCached = 0;
 	nChangeCached = 0;
 	nTimeDisplayed = 0;
 	nLinesDisplayed = 0;
 	fConfirmedDisplayed = false;
+}
+
+// marks certain txout's as spent
+// returns true if any update took place
+bool CWalletTx::UpdateSpent(const vector<char>& vfNewSpent)
+{
+    bool fReturn = false;
+    for (int i=0; i < vfNewSpent.size(); i++)
+    {
+        if (i == vfSpent.size())
+            break;
+
+        if (vfNewSpent[i] && !vfSpent[i])
+        {
+            vfSpent[i] = true;
+            fReturn = true;
+            fAvailableCreditCached = false;
+        }
+    }
+    return fReturn;
+}
+
+void CWalletTx::MarkDirty()
+{
+    fCreditCached = false;
+    fAvailableCreditCached = false;
+    fDebitCached = false;
+    fChangeCached = false;
+}
+
+void CWalletTx::MarkSpent(unsigned int nOut)
+{
+    if (nOut >= vout.size())
+        throw runtime_error("CWalletTx::MarkSpent() : nOut out of range");
+    vfSpent.resize(vout.size());
+    if (!vfSpent[nOut])
+    {
+        vfSpent[nOut] = true;
+        fAvailableCreditCached = false;
+    }
+}
+
+bool CWalletTx::IsSpent(unsigned int nOut) const
+{
+    if (nOut >= vout.size())
+        throw runtime_error("CWalletTx::IsSpent() : nOut out of range");
+    if (nOut >= vfSpent.size())
+        return false;
+    return (!!vfSpent[nOut]);
 }
 
 int64 CWalletTx::GetDebit() const
@@ -71,6 +122,32 @@ int64 CWalletTx::GetCredit(bool fUseCache) const
 	return nCreditCached;
 }
 
+int64 CWalletTx::GetAvailableCredit(bool fUseCache) const
+{
+    // Must wait until coinbase is safely deep enough in the chain before valuing it
+    if (IsCoinBase() && GetBlocksToMaturity() > 0)
+        return 0;
+
+    if (fUseCache && fAvailableCreditCached)
+        return nAvailableCreditCached;
+
+    int64 nCredit = 0;
+    for (int i = 0; i < vout.size(); i++)
+    {
+        if (!IsSpent(i))
+        {
+            const CTxOut &txout = vout[i];
+            nCredit += txout.GetCredit();
+            if (!MoneyRange(nCredit))
+                throw runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
+        }
+    }
+
+    nAvailableCreditCached = nCredit;
+    fAvailableCreditCached = true;
+    return nCredit;
+}
+
 int64 CWalletTx::GetChange() const
 {
 	if (fChangeCached)
@@ -80,18 +157,20 @@ int64 CWalletTx::GetChange() const
 	return nChangeCached;
 }
 
-void CWalletTx::GetAmounts(int64& nGenerated, list<pair<string, int64> >& listReceived,
+    void CWalletTx::GetAmounts(int64& nGeneratedImmature, int64& nGeneratedMature, list<pair<string /* address */, int64> >& listReceived,
                            list<pair<string, int64> >& listSent, int64& nFee, string& strSentAccount) const
 {
-    nGenerated = nFee = 0;
+    nGeneratedImmature = nGeneratedMature = nFee = 0;
     listReceived.clear();
     listSent.clear();
     strSentAccount = strFromAccount;
 
     if (IsCoinBase())
     {
-        if (GetDepthInMainChain() >= COINBASE_MATURITY)
-            nGenerated = GetCredit();
+        if (GetBlocksToMaturity() > 0)
+            nGeneratedImmature = CTransaction::GetCredit();
+        else
+            nGeneratedMature = GetCredit();
         return;
     }
 
@@ -139,15 +218,15 @@ void CWalletTx::GetAccountAmounts(const string& strAccount, int64& nGenerated, i
 {
     nGenerated = nReceived = nSent = nFee = 0;
 
-    int64 allGenerated, allFee;
-    allGenerated = allFee = 0;
+    int64 allGeneratedImmature, allGeneratedMature, allFee;
+    allGeneratedImmature = allGeneratedMature = allFee = 0;
     string strSentAccount;
     list<pair<string, int64> > listReceived;
     list<pair<string, int64> > listSent;
-    GetAmounts(allGenerated, listReceived, listSent, allFee, strSentAccount);
+    GetAmounts(allGeneratedImmature, allGeneratedMature, listReceived, listSent, allFee, strSentAccount);
 
     if (strAccount == "")
-        nGenerated = allGenerated;
+        nGenerated = allGeneratedMature;
     if (strAccount == strSentAccount)
     {
         foreach(const PAIRTYPE(string,int64)& s, listSent)

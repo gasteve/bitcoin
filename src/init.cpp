@@ -103,6 +103,8 @@ bool AppInit2(int argc, char* argv[])
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
     sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGHUP, &sa, NULL);
 #endif
 
     //
@@ -138,9 +140,20 @@ bool AppInit2(int argc, char* argv[])
             "  -addnode=<ip>    \t  "   + _("Add a node to connect to\n") +
             "  -connect=<ip>    \t\t  " + _("Connect only to the specified node\n") +
             "  -nolisten        \t  "   + _("Don't accept connections from outside\n") +
+#ifdef USE_UPNP
+#if USE_UPNP
+            "  -noupnp          \t  "   + _("Don't attempt to use UPnP to map the listening port\n") +
+#else
+            "  -upnp            \t  "   + _("Attempt to use UPnP to map the listening port\n") +
+#endif
+#endif
             "  -paytxfee=<amt>  \t  "   + _("Fee per KB to add to transactions you send\n") +
+#ifdef GUI
             "  -server          \t\t  " + _("Accept command line and JSON-RPC commands\n") +
+#endif
+#ifndef __WXMSW__
             "  -daemon          \t\t  " + _("Run in the background as a daemon and accept commands\n") +
+#endif
             "  -testnet         \t\t  " + _("Use the test network\n") +
             "  -rpcuser=<user>  \t  "   + _("Username for JSON-RPC connections\n") +
             "  -rpcpassword=<pw>\t  "   + _("Password for JSON-RPC connections\n") +
@@ -175,18 +188,57 @@ bool AppInit2(int argc, char* argv[])
 
     fDebug = GetBoolArg("-debug");
 
+#ifndef __WXMSW__
+    fDaemon = GetBoolArg("-daemon");
+#else
+    fDaemon = false;
+#endif
+
+    if (fDaemon)
+        fServer = true;
+    else
+        fServer = GetBoolArg("-server");
+
+    /* force fServer when running without GUI */
+#ifndef GUI
+    fServer = true;
+#endif
+
     fPrintToConsole = GetBoolArg("-printtoconsole");
     fPrintToDebugger = GetBoolArg("-printtodebugger");
 
     fTestNet = GetBoolArg("-testnet");
-    
     fNoListen = GetBoolArg("-nolisten");
+    fLogTimestamps = GetBoolArg("-logtimestamps");
+
+    for (int i = 1; i < argc; i++)
+        if (!IsSwitchChar(argv[i][0]))
+            fCommandLine = true;
 
     if (fCommandLine)
     {
         int ret = CommandLineRPC(argc, argv);
         exit(ret);
     }
+
+#ifndef __WXMSW__
+    if (fDaemon)
+    {
+        // Daemonize
+        pid_t pid = fork();
+        if (pid < 0)
+        {
+            fprintf(stderr, "Error: fork() returned %d errno %d\n", pid, errno);
+            return false;
+        }
+        if (pid > 0)
+            return true;
+
+        pid_t sid = setsid();
+        if (sid < 0)
+            fprintf(stderr, "Error: setsid() returned %d errno %d\n", sid, errno);
+    }
+#endif
 
     if (!fDebug && !pszSetDataDir[0])
         ShrinkDebugFile();
@@ -378,6 +430,9 @@ bool AppInit2(int argc, char* argv[])
         }
     }
 
+    if (mapArgs.count("-dnsseed"))
+        DNSAddressSeed();
+
     if (mapArgs.count("-paytxfee"))
     {
         if (!ParseMoney(mapArgs["-paytxfee"], nTransactionFee))
@@ -387,6 +442,17 @@ bool AppInit2(int argc, char* argv[])
         }
         if (nTransactionFee > 0.25 * COIN)
             wxMessageBox(_("Warning: -paytxfee is set very high.  This is the transaction fee you will pay if you send a transaction."), "Bitcoin", wxOK | wxICON_EXCLAMATION);
+    }
+
+    if (fHaveUPnP)
+    {
+#if USE_UPNP
+    if (GetBoolArg("-noupnp"))
+        fUseUPnP = false;
+#else
+    if (GetBoolArg("-upnp"))
+        fUseUPnP = true;
+#endif
     }
 
     //
@@ -405,12 +471,17 @@ bool AppInit2(int argc, char* argv[])
     if (!CreateThread(StartNode, NULL))
         wxMessageBox("Error: CreateThread(StartNode) failed", "Bitcoin");
 
-    if (GetBoolArg("-server") || fDaemon)
+    if (fServer)
         CreateThread(ThreadRPCServer, NULL);
 
 #if defined(__WXMSW__) && defined(GUI)
     if (fFirstRun)
         SetStartOnSystemStartup(true);
+#endif
+
+#ifndef GUI
+    while (1)
+        Sleep(5000);
 #endif
 
     return true;

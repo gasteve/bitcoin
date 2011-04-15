@@ -81,7 +81,13 @@ int fLimitProcessors = false;
 int nLimitProcessors = 1;
 int fMinimizeToTray = true;
 int fMinimizeOnClose = true;
-
+#ifdef USE_UPNP
+#if USE_UPNP
+int fUseUPnP = true;
+#else
+int fUseUPnP = false;
+#endif
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -169,33 +175,35 @@ void ReacceptWalletTransactions()
         foreach(PAIRTYPE(const uint256, CWalletTx)& item, mapWallet)
         {
             CWalletTx& wtx = item.second;
-            if (wtx.fSpent && wtx.IsCoinBase())
+            if (wtx.IsCoinBase() && wtx.IsSpent(0))
                 continue;
 
             CTxIndex txindex;
+            bool fUpdated = false;
             if (txdb.ReadTxIndex(wtx.GetHash(), txindex))
             {
                 // Update fSpent if a tx got spent somewhere else by a copy of wallet.dat
-                if (!wtx.fSpent)
+                if (txindex.vSpent.size() != wtx.vout.size())
                 {
-                    if (txindex.vSpent.size() != wtx.vout.size())
-                    {
-                        printf("ERROR: ReacceptWalletTransactions() : txindex.vSpent.size() %d != wtx.vout.size() %d\n", txindex.vSpent.size(), wtx.vout.size());
+                    printf("ERROR: ReacceptWalletTransactions() : txindex.vSpent.size() %d != wtx.vout.size() %d\n", txindex.vSpent.size(), wtx.vout.size());
+                    continue;
+                }
+                for (int i = 0; i < txindex.vSpent.size(); i++)
+                {
+                    if (wtx.IsSpent(i))
                         continue;
-                    }
-                    for (int i = 0; i < txindex.vSpent.size(); i++)
+                    if (!txindex.vSpent[i].IsNull() && wtx.vout[i].IsMine())
                     {
-                        if (!txindex.vSpent[i].IsNull() && wtx.vout[i].IsMine())
-                        {
-                            wtx.fSpent = true;
-                            vMissingTx.push_back(txindex.vSpent[i]);
-                        }
+                        wtx.MarkSpent(i);
+                        fUpdated = true;
+                        vMissingTx.push_back(txindex.vSpent[i]);
                     }
-                    if (wtx.fSpent)
-                    {
-                        printf("ReacceptWalletTransactions found spent coin %sbc %s\n", FormatMoney(wtx.GetCredit()).c_str(), wtx.GetHash().ToString().c_str());
-                        wtx.WriteToDisk();
-                    }
+                }
+                if (fUpdated)
+                {
+                    printf("ReacceptWalletTransactions found spent coin %sbc %s\n", FormatMoney(wtx.GetCredit()).c_str(), wtx.GetHash().ToString().c_str());
+                    wtx.MarkDirty();
+                    wtx.WriteToDisk();
                 }
             }
             else
@@ -342,7 +350,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits)
 
 bool IsInitialBlockDownload()
 {
-    if (pindexBest == NULL || (!fTestNet && nBestHeight < 105000))
+    if (pindexBest == NULL || (!fTestNet && nBestHeight < 118000))
         return true;
     static int64 nLastUpdate;
     static CBlockIndex* pindexLastBest;
@@ -1009,6 +1017,10 @@ bool ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             pfrom->fDisconnect = true;
             return true;
         }
+
+        // Be shy and don't send version until we hear
+        if (pfrom->fInbound)
+            pfrom->PushVersion();
 
         pfrom->fClient = !(pfrom->nServices & NODE_NETWORK);
 

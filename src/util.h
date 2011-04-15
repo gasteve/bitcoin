@@ -103,10 +103,12 @@ extern char pszSetDataDir[MAX_PATH];
 extern bool fRequestShutdown;
 extern bool fShutdown;
 extern bool fDaemon;
+extern bool fServer;
 extern bool fCommandLine;
 extern string strMiscWarning;
 extern bool fTestNet;
 extern bool fNoListen;
+extern bool fLogTimestamps;
 
 inline int myclosesocket(SOCKET& hSocket);
 

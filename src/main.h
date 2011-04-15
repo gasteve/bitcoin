@@ -35,6 +35,11 @@ static const int64 CENT = 1000000;
 static const int64 MAX_MONEY = 21000000 * COIN;
 inline bool MoneyRange(int64 nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 static const int COINBASE_MATURITY = 100;
+#ifdef USE_UPNP
+static const int fHaveUPnP = true;
+#else
+static const int fHaveUPnP = false;
+#endif
 
 extern CCriticalSection cs_main;
 extern CCriticalSection cs_mapAlerts;
@@ -65,6 +70,7 @@ extern int fLimitProcessors;
 extern int nLimitProcessors;
 extern int fMinimizeToTray;
 extern int fMinimizeOnClose;
+extern int fUseUPnP;
 
 bool CheckDiskSpace(uint64 nAdditionalBytes=0);
 FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode="rb");
@@ -81,6 +87,7 @@ void PrintBlockTree();
 bool ProcessMessages(CNode* pfrom);
 bool ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv);
 bool SendMessages(CNode* pto, bool fSendTrickle);
+bool CreateTransaction(const vector<pair<CScript, int64> >& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, int64& nFeeRet);
 bool CreateTransaction(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew, CReserveKey& reservekey, int64& nFeeRet);
 bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 bool BroadcastTransaction(CWalletTx& wtxNew);

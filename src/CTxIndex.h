@@ -24,7 +24,6 @@ public:
     int GetDepthInMainChain() const;
     friend bool operator==(const CTxIndex& a, const CTxIndex& b);
     friend bool operator!=(const CTxIndex& a, const CTxIndex& b);
-    int GetDepthInMainChain() const;
 
     IMPLEMENT_SERIALIZE
     (

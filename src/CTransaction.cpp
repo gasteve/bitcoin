@@ -14,6 +14,14 @@
 // CTransaction
 //
 
+// AllowFree is a class (static) method
+bool CTransaction::AllowFree(double dPriority)
+{
+    // Large (in bytes) low-priority (new, small-coin) transactions
+    // need a fee.
+    return dPriority > COIN * 144 / 250;
+}
+
 CTransaction::CTransaction()
 {
 	SetNull();
@@ -170,13 +178,6 @@ int64 CTransaction::GetValueOut() const
 			throw runtime_error("CTransaction::GetValueOut() : value out of range");
 	}
 	return nValueOut;
-}
-
-static bool CTransaction::AllowFree(double dPriority)
-{
-    // Large (in bytes) low-priority (new, small-coin) transactions
-    // need a fee.
-    return dPriority > COIN * 144 / 250;
 }
 
 int64 CTransaction::GetMinFee(unsigned int nBlockSize, bool fAllowFree) const

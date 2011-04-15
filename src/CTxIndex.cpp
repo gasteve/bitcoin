@@ -1,5 +1,9 @@
 #include "CTxIndex.h"
 
+#include "main.h"
+#include "CBlock.h"
+#include "CBlockIndex.h"
+
 CTxIndex::CTxIndex()
 {
 	SetNull();

@@ -2,11 +2,17 @@ ABOUT
 =====
 
 This branch is a reorganization of the bitcoin source code (the actual
-behavior of the code has not been changed).  The main intent of this
-commit is to solicit input and review of the organization.  Much work
-remains to finish the reorganization, get it easily building across all
-supported platforms and to document it.  This readme file is a brief
-overview of the work thus far and what remains to be done.
+behavior of the code has not been changed).  It is based on the
+0.3.21beta (commit b37f09aa2e80b17028ad7fe1e87362c0f07c7406) sources.
+The main intent of this commit is to solicit input and review of the
+organization.  Much work remains to finish the reorganization, get it
+easily building across all supported platforms and to document it.  This
+readme file is a brief overview of the work thus far and what remains to
+be done.
+
+Note: while the sources are in sync with the latest commit on the master
+bitcoin branch, the autotool have not been taught how to build with
+USE_UNPNP enabled.
 
 Classes are now organized into their own source code files.  For each
 class there is a header file that declares the class, a header file that
@@ -62,7 +68,7 @@ yet).  Both the daemon and full GUI have been successfully compiled.
 Remaining work (in rough priority order):
 
 1. Sync up with the head of the master bitcoin source code branch (this
-code is based on 0.3.20.2)
+code is based on 0.3.20.2) --DONE
 
 2. Organize the non class based sources by grouping related functions
 together and relocated source files into subdirectories (likely subdirs
@@ -141,3 +147,15 @@ map     map or multimap
 set     set or multiset
 bn      CBigNum
 
+Classes:
+
+Classes should be separated into their own *.h, *-inl.h and *.cpp files
+using the class name for the base of the filename (class names should
+begin with the letter "C").  The *.h file should contain only the class
+declaration.  The definitions of any inline and template members belongs
+in *-inl.h and should be included from the *.h file (near the end).  The
+header file should be guarded with the typical #ifndef/#define pattern
+to ensure it is only included once.  The one exception to this rule are
+exception classes, who's declaration and definitions can be placed in
+the files of the class that uses them (declare the main class first,
+followed by the exception class(es)).

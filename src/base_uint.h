@@ -52,7 +52,6 @@ public:
         return ret;
     }
     
-    
     base_uint& operator=(uint64 b)
     {
         pn[0] = (unsigned int)b;

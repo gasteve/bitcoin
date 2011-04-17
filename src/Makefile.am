@@ -1,4 +1,4 @@
-bin_PROGRAMS = bitcoin bitcoind
+bin_PROGRAMS = bitcoin bitcoind bitcoinTest
 
 COMMON_SRC_FILES = \
     CAccount.cpp \
@@ -74,11 +74,15 @@ bitcoin_SOURCES = $(COMMON_SRC_FILES) \
 bitcoind_SOURCES=$(COMMON_SRC_FILES) \
     cli/dmain.cpp
 
+bitcoinTest_SOURCES=$(COMMON_SRC_FILES) test/bitcoinTest.cpp
+
 CXX=llvm-g++
-DEPSDIR=../../deps
+DEPSDIR=../deps
 #DEFS=$(SHELL $(DEPSDIR)/bin/wx-config --cxxflags) -D__WXMAC_OSX__ -DNOPCH -DMSG_NOSIGNAL=0 -DUSE_SSL
 
 DEFS=-D__WXMAC_OSX__ -DNOPCH -DMSG_NOSIGNAL=0 -DUSE_SSL
+#    -I$(DEPSDIR)/lib/wx/include/osx_cocoa-unicode-static-2.9 
+#    -I$(DEPSDIR)/wxWidgets-trunk/include 
 WXDEFS = \
     -I$(DEPSDIR)/lib/wx/include/osx_cocoa-unicode-static-2.9 \
     -I$(DEPSDIR)/include/wx-2.9 \
@@ -90,10 +94,10 @@ WXDEFS = \
 
 DEBUGFLAGS=-g -DwxDEBUG_LEVEL=0
 INCLUDEPATHS= \
- -I"$(DEPSDIR)/include"
+    -I$(DEPSDIR)/include
 
 LIBPATHS= \
- -L"$(DEPSDIR)/lib"
+    -L"$(DEPSDIR)/lib"
 
 #The following is based on the output of:
 #  $(DEPSDIR)/bin/wx-config --libs --static
@@ -138,5 +142,4 @@ bitcoin_CPPFLAGS=$(AM_CPPFLAGS) $(WXDEFS) -DGUI
 
 AM_LDFLAGS=$(LIBPATHS) $(LIBS)
 bitcoin_LDFLAGS=$(AM_LDFLAGS) $(WXLIBS)
-
-
+bitcoinTest_LDFLAGS=$(AM_LDFLAGS) -lboost_unit_test_framework

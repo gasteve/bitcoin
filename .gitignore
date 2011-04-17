@@ -18,3 +18,7 @@ install-sh
 missing
 .dirstamp
 stamp-h1
+deps
+build
+html
+latex

@@ -78,11 +78,10 @@ bitcoinTest_SOURCES=$(COMMON_SRC_FILES) test/bitcoinTest.cpp
 
 CXX=llvm-g++
 DEPSDIR=../deps
-#DEFS=$(SHELL $(DEPSDIR)/bin/wx-config --cxxflags) -D__WXMAC_OSX__ -DNOPCH -DMSG_NOSIGNAL=0 -DUSE_SSL
 
 DEFS=-D__WXMAC_OSX__ -DNOPCH -DMSG_NOSIGNAL=0 -DUSE_SSL
-#    -I$(DEPSDIR)/lib/wx/include/osx_cocoa-unicode-static-2.9 
-#    -I$(DEPSDIR)/wxWidgets-trunk/include 
+
+#DEFS=$(SHELL $(DEPSDIR)/bin/wx-config --cxxflags) -D__WXMAC_OSX__ -DNOPCH -DMSG_NOSIGNAL=0 -DUSE_SSL
 WXDEFS = \
     -I$(DEPSDIR)/lib/wx/include/osx_cocoa-unicode-static-2.9 \
     -I$(DEPSDIR)/include/wx-2.9 \
